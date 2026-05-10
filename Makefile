@@ -12,19 +12,21 @@ BINDIR   := build
 
 INC      := -I$(SRCDIR)
 
-# 共享的驱动模块（不含 main.c 和 teleop.c）
+# 共享的驱动模块（不含入口文件 main.c / teleop.c / joystick.c）
 DRV_SRCS  := $(SRCDIR)/serial_port.c \
              $(SRCDIR)/emm_v5_driver.c \
-             $(SRCDIR)/kinematics.c
+             $(SRCDIR)/kinematics.c \
+             $(SRCDIR)/dashboard.c
 DRV_OBJS  := $(patsubst $(SRCDIR)/%.c, $(BINDIR)/%.o, $(DRV_SRCS))
 
-# 两个可执行程序
-TARGET_DEMO   := $(BINDIR)/smart_car
-TARGET_TELEOP := $(BINDIR)/teleop
+# 三个可执行程序
+TARGET_DEMO    := $(BINDIR)/smart_car
+TARGET_TELEOP  := $(BINDIR)/teleop
+TARGET_JOYSTICK := $(BINDIR)/joystick
 
-.PHONY: all clean run run-teleop dist help
+.PHONY: all clean run run-teleop run-joystick calibrate-joystick dist help
 
-all: $(TARGET_DEMO) $(TARGET_TELEOP)
+all: $(TARGET_DEMO) $(TARGET_TELEOP) $(TARGET_JOYSTICK)
 
 $(BINDIR):
 	mkdir -p $(BINDIR)
@@ -45,6 +47,10 @@ $(TARGET_TELEOP): $(BINDIR)/teleop.o $(DRV_OBJS) | $(BINDIR)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 	@echo "  LINK  $@"
 
+$(TARGET_JOYSTICK): $(BINDIR)/joystick.o $(DRV_OBJS) | $(BINDIR)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+	@echo "  LINK  $@"
+
 # 自动依赖文件
 -include $(wildcard $(BINDIR)/*.d)
 
@@ -57,6 +63,14 @@ run: $(TARGET_DEMO)
 run-teleop: $(TARGET_TELEOP)
 	@echo "=== 键盘遥控 ==="
 	./$(TARGET_TELEOP) /dev/ttyUSB0
+
+run-joystick: $(TARGET_JOYSTICK)
+	@echo "=== 手柄遥控（模拟模式） ==="
+	./$(TARGET_JOYSTICK) /dev/ttyUSB0
+
+calibrate-joystick: $(TARGET_JOYSTICK)
+	@echo "=== 手柄校准 ==="
+	./$(TARGET_JOYSTICK) /dev/ttyUSB0 --calibrate
 
 # ---- 清理 ----
 
@@ -76,11 +90,13 @@ dist:
 
 help:
 	@echo "Usage:"
-	@echo "  make            编译全部"
-	@echo "  make run        运行 Demo 演示"
-	@echo "  make run-teleop 运行键盘遥控"
-	@echo "  make clean      清理编译产物"
-	@echo "  make dist       打包源码"
+	@echo "  make                     编译全部"
+	@echo "  make run                 运行 Demo 演示"
+	@echo "  make run-teleop          运行键盘遥控"
+	@echo "  make run-joystick        运行手柄遥控"
+	@echo "  make calibrate-joystick  手柄校准模式"
+	@echo "  make clean               清理编译产物"
+	@echo "  make dist                打包源码"
 	@echo ""
-	@echo "  硬件开关: 修改 src/main.c 或 src/teleop.c 顶部"
-	@echo "            HARDWARE_ENABLED 0→1 后重新 make"
+	@echo "  硬件开关: 修改 src/main.c / teleop.c / joystick.c 顶部"
+	@echo "            HARDWARE_ENABLED 0->1 后重新 make"
