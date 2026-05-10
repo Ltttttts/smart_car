@@ -10,7 +10,13 @@
  *
  * 安全提示：首次运行前请将小车架起（车轮悬空），确认方向正确后再落地。
  * 各轮方向修正因子见下方 DIR_FACTOR_xx 宏。
+ *
+ * ================================================================
+ * TODO: 连接硬件后将下面的 0 改为 1，恢复全部真实驱动代码
+ *       当前为模拟模式，不访问串口和电机，仅演示运动学计算
+ * ================================================================
  */
+#define HARDWARE_ENABLED 0
 
 #include "serial_port.h"
 #include "emm_v5_driver.h"
@@ -65,10 +71,32 @@ static void demo_sleep(uint32_t seconds)
     sleep(seconds);
 }
 
+/* ---- 辅助：打印模拟的 RPM 指令 ---- */
+
+static const char *s_motor_name[MOTOR_COUNT] =
+    { "FL", "FR", "RL", "RR" };
+
+static void print_sim_rpm(const double rpm[4], const char *action)
+{
+    size_t i;
+
+    printf("  [模拟] %s:", action);
+    for (i = 0; i < MOTOR_COUNT; i++) {
+        printf("  %s=%.0f", s_motor_name[i], rpm[i]);
+    }
+    printf(" RPM\n");
+}
+
 /* ============ 初始化 / 反初始化 ============ */
+
+/*
+ * TODO: 连接硬件后，把下面 #if HARDWARE_ENABLED 分支里的代码恢复为正式代码
+ *       当前 #else 分支是模拟模式，不访问任何硬件
+ */
 
 static int init_all(const char *device)
 {
+#if HARDWARE_ENABLED
     size_t   i;
     int      ret;
     uint8_t addrs[MOTOR_COUNT] = {
@@ -101,8 +129,13 @@ static int init_all(const char *device)
             return ERR_NULL_PTR;
         }
     }
+#else
+    /* 模拟模式：不操作硬件 */
+    (void)device;
+    printf("[模拟] 跳过串口和电机初始化\n");
+#endif
 
-    /* 初始化运动学 */
+    /* 运动学初始化（无论是否连接硬件都需要） */
     kinematics_init(&s_kin, WHEEL_RADIUS_M, HALF_LX_M,
                     HALF_LY_M, ENCODER_PPR);
 
@@ -111,6 +144,7 @@ static int init_all(const char *device)
 
 static void deinit_all(void)
 {
+#if HARDWARE_ENABLED
     size_t i;
 
     for (i = 0; i < MOTOR_COUNT; i++) {
@@ -126,12 +160,16 @@ static void deinit_all(void)
         serial_port_destroy(s_port);
         s_port = NULL;
     }
+#else
+    printf("[模拟] 跳过硬件清理\n");
+#endif
 }
 
 /* ============ 电机使能 / 失能 ============ */
 
 static int enable_all_motors(void)
 {
+#if HARDWARE_ENABLED
     size_t i;
     int    ret;
 
@@ -142,23 +180,29 @@ static int enable_all_motors(void)
             return ret;
         }
     }
-
+#else
+    printf("[模拟] 电机已使能（模拟）\n");
+#endif
     return ERR_OK;
 }
 
 static void disable_all_motors(void)
 {
+#if HARDWARE_ENABLED
     size_t i;
-
     for (i = 0; i < MOTOR_COUNT; i++) {
         (void)emm_motor_disable(s_motor[i]);
     }
+#else
+    printf("[模拟] 电机已失能（模拟）\n");
+#endif
 }
 
 /* ============ 读取编码器 ============ */
 
 static void read_and_print_encoders(void)
 {
+#if HARDWARE_ENABLED
     int32_t    enc[4];
     int        ret;
     size_t     i;
@@ -173,6 +217,10 @@ static void read_and_print_encoders(void)
             printf("  [%s] 读取失败: %d\n", names[i], ret);
         }
     }
+#else
+    printf("---- 电机编码器读数 ----\n");
+    printf("  [模拟] 未连接硬件，编码器不可用\n");
+#endif
 }
 
 /* ============ 小车移动（速度模式 + 同步触发） ============ */
@@ -182,6 +230,7 @@ static void read_and_print_encoders(void)
  */
 static int move_wheels_sync(const double target_rpm[4])
 {
+#if HARDWARE_ENABLED
     size_t i;
     int    ret;
 
@@ -202,6 +251,11 @@ static int move_wheels_sync(const double target_rpm[4])
     }
 
     return ret;
+#else
+    print_sim_rpm(target_rpm, "本应发送 RPM");
+    (void)target_rpm;
+    return ERR_OK;
+#endif
 }
 
 /**
@@ -209,11 +263,14 @@ static int move_wheels_sync(const double target_rpm[4])
  */
 static void stop_all_motors(void)
 {
+#if HARDWARE_ENABLED
     size_t i;
-
     for (i = 0; i < MOTOR_COUNT; i++) {
         (void)emm_motor_stop(s_motor[i], false);
     }
+#else
+    printf("  [模拟] 急停\n");
+#endif
 }
 
 /* ============ 演示动作序列 ============ */
@@ -332,6 +389,13 @@ int main(int argc, char *argv[])
     device = (argc >= 2) ? argv[1] : EMM_DEFAULT_DEVICE;
 
     printf("=== 智能小车 麦克纳姆轮演示 ===\n");
+#if HARDWARE_ENABLED
+    printf("模式: 硬件已连接\n");
+#else
+    printf("模式: 模拟（无硬件）\n");
+    printf("  -> 如需启动真实硬件，将 main.c 顶部 "
+           "HARDWARE_ENABLED 改为 1 后重新编译\n");
+#endif
     printf("串口设备: %s\n", device);
 
     /* 初始化 */
@@ -350,7 +414,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+#if HARDWARE_ENABLED
     printf("电机已使能。\n");
+#endif
     demo_sleep(1U);
 
     /* ---- 运动演示 ---- */
