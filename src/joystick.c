@@ -73,12 +73,13 @@ static int has_abs_capability(int fd)
 {
     unsigned long bits[(ABS_MAX + 1U) /
                       (sizeof(unsigned long) * 8U) + 1U];
-    int i, found;
+    unsigned int i;
+    int found;
     memset(bits, 0, sizeof(bits));
     if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(bits)), bits) < 0)
         return 0;
     found = 0;
-    for (i = ABS_X; i <= ABS_RZ; i++) {
+    for (i = (unsigned int)ABS_X; i <= (unsigned int)ABS_RZ; i++) {
         if (bits[i / (sizeof(unsigned long) * 8U)] &
             (1UL << (i % (sizeof(unsigned long) * 8U))))
             found++;
@@ -90,7 +91,7 @@ static int auto_detect_joy(char *path, size_t path_size)
 {
     DIR *dir = opendir("/dev/input");
     struct dirent *entry;
-    char full[128];
+    char full[256];
     if (!dir) return -1;
 
     while ((entry = readdir(dir)) != NULL) {
@@ -255,6 +256,8 @@ static void send_velocity(const double rpm[4])
         (void)emm_motor_set_velocity(s_motor[i], (int16_t)rpm[i],
                                      EMM_DEFAULT_ACC, true);
     (void)emm_motor_sync_trigger(s_motor, MOTOR_COUNT);
+#else
+    (void)rpm;
 #endif
 }
 

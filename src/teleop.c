@@ -145,6 +145,8 @@ static void send_velocity(const double rpm[4])
                      (int16_t)rpm[i],
                      EMM_DEFAULT_ACC, true);
     (void)emm_motor_sync_trigger(s_motor, MOTOR_COUNT);
+#else
+    (void)rpm;
 #endif
 }
 
