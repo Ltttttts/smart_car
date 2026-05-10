@@ -1,0 +1,21 @@
+# opencode 运行时依赖
+node_modules/
+
+# 编译产物
+build/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+
+# IDE
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 环境变量
+.env
