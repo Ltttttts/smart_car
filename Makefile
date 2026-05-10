@@ -9,45 +9,62 @@ LDFLAGS  := -lm -lpthread
 
 SRCDIR   := src
 BINDIR   := build
-TARGET   := $(BINDIR)/smart_car
-
-SRCS     := $(wildcard $(SRCDIR)/*.c)
-OBJS     := $(patsubst $(SRCDIR)/%.c, $(BINDIR)/%.o, $(SRCS))
-DEPS     := $(OBJS:.o=.d)
 
 INC      := -I$(SRCDIR)
 
-.PHONY: all clean run help
+# 共享的驱动模块（不含 main.c 和 teleop.c）
+DRV_SRCS  := $(SRCDIR)/serial_port.c \
+             $(SRCDIR)/emm_v5_driver.c \
+             $(SRCDIR)/kinematics.c
+DRV_OBJS  := $(patsubst $(SRCDIR)/%.c, $(BINDIR)/%.o, $(DRV_SRCS))
 
-all: $(TARGET)
+# 两个可执行程序
+TARGET_DEMO   := $(BINDIR)/smart_car
+TARGET_TELEOP := $(BINDIR)/teleop
 
-# Create build directory
+.PHONY: all clean run run-teleop dist help
+
+all: $(TARGET_DEMO) $(TARGET_TELEOP)
+
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
-# Link
-$(TARGET): $(OBJS) | $(BINDIR)
-	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
-	@echo "  LINK  $@"
+# ---- 编译规则 ----
 
-# Compile with auto-dependency generation
 $(BINDIR)/%.o: $(SRCDIR)/%.c | $(BINDIR)
 	$(CC) $(CFLAGS) $(INC) -MMD -MP -c $< -o $@
 	@echo "  CC    $<"
 
-# Include auto-generated dependency files
--include $(DEPS)
+# ---- 链接 ----
 
-# Run with default device
-run: $(TARGET)
-	@echo "Running demo..."
-	sudo $(TARGET) /dev/ttyUSB0
+$(TARGET_DEMO): $(BINDIR)/main.o $(DRV_OBJS) | $(BINDIR)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+	@echo "  LINK  $@"
 
-# Clean build artifacts
+$(TARGET_TELEOP): $(BINDIR)/teleop.o $(DRV_OBJS) | $(BINDIR)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+	@echo "  LINK  $@"
+
+# 自动依赖文件
+-include $(wildcard $(BINDIR)/*.d)
+
+# ---- 运行 ----
+
+run: $(TARGET_DEMO)
+	@echo "=== Demo 演示 ==="
+	./$(TARGET_DEMO) /dev/ttyUSB0
+
+run-teleop: $(TARGET_TELEOP)
+	@echo "=== 键盘遥控 ==="
+	./$(TARGET_TELEOP) /dev/ttyUSB0
+
+# ---- 清理 ----
+
 clean:
 	rm -rf $(BINDIR)
 
-# Create clean source tarball (excludes build/, node_modules/)
+# ---- 打包 ----
+
 dist:
 	tar czf smart_car_src.tar.gz \
 	    --exclude='build' \
@@ -59,9 +76,11 @@ dist:
 
 help:
 	@echo "Usage:"
-	@echo "  make          Build the project"
-	@echo "  make run      Build and run with /dev/ttyUSB0"
-	@echo "  make clean    Remove build artifacts"
-	@echo "  make dist     Create clean source tarball"
+	@echo "  make            编译全部"
+	@echo "  make run        运行 Demo 演示"
+	@echo "  make run-teleop 运行键盘遥控"
+	@echo "  make clean      清理编译产物"
+	@echo "  make dist       打包源码"
 	@echo ""
-	@echo "  DEVICE=/dev/ttyS0 make run   (custom device)"
+	@echo "  硬件开关: 修改 src/main.c 或 src/teleop.c 顶部"
+	@echo "            HARDWARE_ENABLED 0→1 后重新 make"
