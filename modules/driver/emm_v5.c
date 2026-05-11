@@ -1,5 +1,5 @@
 /**
- * @file    emm_v5_driver.c
+ * @file    modules/driver/emm_v5.c
  * @brief   EMM_V5 闭环步进电机驱动实现
  * @author  Ltttttts
  *
@@ -10,8 +10,8 @@
  * 正式使用前需对照 EMM_V5 手册验证。
  */
 
-#include "emm_v5_driver.h"
-#include "serial_port.h"
+#include "driver/emm_v5.h"
+#include "hal/serial_port.h"
 
 #include <stdlib.h>
 #include <string.h>

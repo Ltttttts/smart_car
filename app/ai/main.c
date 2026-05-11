@@ -1,30 +1,22 @@
 /**
- * @file    ai_control.c
+ * @file    app/ai/main.c
  * @brief   AI 对话控制底盘（文本输入 → LLM → 电机控制）
  * @author  Ltttttts
  *
  * 用法:
- *   export LLM_API_KEY="sk-xxxxx"      # 必填
- *   export LLM_API_URL="..."            # 可选，默认 Go API
- *   export LLM_MODEL="deepseek-v4-flash" # 可选
+ *   export LLM_API_KEY="sk-xxxxx"
+ *   export LLM_MODEL="deepseek-v4-flash"
  *   make run-ai
- *
- * 输入文字指令，LLM 驱动底盘执行。
- * 按 Ctrl+C 或输入 "exit" 退出。
- *
- * ================================================================
- * TODO: 连接硬件后将下面的 0 改为 1
- * ================================================================
  */
-#define HARDWARE_ENABLED 0
 
+#define HARDWARE_ENABLED 0
 #define _GNU_SOURCE
 
-#include "serial_port.h"
-#include "emm_v5_driver.h"
-#include "kinematics.h"
-#include "llm_client.h"
-#include "json_helper.h"
+#include "hal/serial_port.h"
+#include "driver/emm_v5.h"
+#include "control/kinematics.h"
+#include "comm/llm_client.h"
+#include "comm/json_helper.h"
 
 #include <stdio.h>
 #include <stdlib.h>

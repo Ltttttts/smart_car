@@ -1,6 +1,3 @@
-# opencode 运行时依赖
-node_modules/
-
 # 编译产物
 build/
 *.o
@@ -8,6 +5,9 @@ build/
 *.elf
 *.bin
 *.hex
+
+# opencode 运行时依赖
+node_modules/
 
 # IDE
 .vscode/
@@ -19,3 +19,6 @@ Thumbs.db
 
 # 环境变量
 .env
+
+# 压缩包
+*.tar.gz

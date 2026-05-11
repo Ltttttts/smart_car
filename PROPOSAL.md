@@ -429,6 +429,54 @@ DeepSORT流程:
 
 ```
 smart_car/
+├── Makefile                       # 顶层构建文件
+├── PROPOSAL.md                    # 本文档 - 项目方案
+├── README.md                      # 项目说明 + 快速开始（TODO）
+├── .gitignore
+│
+├── include/                       # 公共头文件
+│   └── common.h                   # 错误码、常量、类型定义
+│
+├── modules/                       # 模块（静态编译进所有目标）
+│   ├── hal/                       # 硬件抽象层
+│   │   ├── serial_port.h          # Linux 串口封装
+│   │   └── serial_port.c
+│   ├── driver/                    # 设备驱动
+│   │   ├── emm_v5.h              # EMM_V5 闭环步进电机 UART 协议
+│   │   └── emm_v5.c
+│   ├── control/                   # 控制算法
+│   │   ├── kinematics.h           # 麦克纳姆轮运动学
+│   │   └── kinematics.c
+│   ├── comm/                      # 通信协议
+│   │   ├── llm_client.h           # LLM API 客户端 (libcurl)
+│   │   ├── llm_client.c
+│   │   ├── json_helper.h          # 简易 JSON 字段提取
+│   │   └── json_helper.c
+│   └── ui/                        # 用户界面
+│       ├── dashboard.h            # 终端仪表盘
+│       └── dashboard.c
+│
+├── app/                           # 可执行程序入口
+│   ├── joystick/
+│   │   └── main.c                 # 手柄遥控（evdev 协议）
+│   └── ai/
+│       └── main.c                 # AI 对话控制
+│
+├── config/                        # 配置文件（预留）
+│
+├── docs/                          # 文档
+│   ├── reference/                 # 参考文档
+│   │   ├── Emm_V5/                # EMM_V5 驱动器手册 + 示例代码
+│   │   └── OrangePi_5B_RK3588S_用户手册_v1.5.1.pdf
+│   └── hardware_setup.md         # 硬件接线指南（TODO）
+│
+├── scripts/                       # 辅助脚本（预留）
+│
+├── tests/                         # 测试代码（预留）
+│
+└── extern/                        # 第三方库（预留）
+```
+smart_car/
 ├── PROPOSAL.md                    # 本文档 - 项目方案
 ├── README.md                      # 项目说明 + 快速开始
 ├── LICENSE                        # 许可证

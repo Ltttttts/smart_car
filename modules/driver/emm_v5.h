@@ -1,5 +1,5 @@
 /**
- * @file    emm_v5_driver.h
+ * @file    emm_v5.h
  * @brief   EMM_V5 闭环步进电机驱动（UART 通信协议封装）
  * @author  Ltttttts
  *
@@ -8,8 +8,8 @@
  * 再调用 emm_motor_sync_trigger() 同时触发执行。
  */
 
-#ifndef SMART_CAR_EMM_V5_DRIVER_H
-#define SMART_CAR_EMM_V5_DRIVER_H
+#ifndef SMART_CAR_EMM_V5_H
+#define SMART_CAR_EMM_V5_H
 
 #include "common.h"
 
@@ -170,4 +170,4 @@ int emm_motor_read_error(EmmMotor_t *self, int16_t *value);
  */
 int emm_motor_reset_position(EmmMotor_t *self);
 
-#endif /* SMART_CAR_EMM_V5_DRIVER_H */
+#endif /* SMART_CAR_EMM_V5_H */

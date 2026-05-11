@@ -16,7 +16,7 @@
  *   ω_rad = (π / 30) * rpm
  */
 
-#include "kinematics.h"
+#include "control/kinematics.h"
 #include <math.h>
 
 #ifndef M_PI

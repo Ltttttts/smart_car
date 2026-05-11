@@ -7,7 +7,7 @@
 #define _POSIX_C_SOURCE 199309L
 #endif
 
-#include "dashboard.h"
+#include "ui/dashboard.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>

@@ -4,7 +4,7 @@
  * @author  Ltttttts
  */
 
-#include "serial_port.h"
+#include "hal/serial_port.h"
 
 #include <errno.h>
 #include <fcntl.h>

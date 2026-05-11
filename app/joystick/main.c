@@ -1,23 +1,16 @@
 /**
- * @file    joystick.c
+ * @file    app/joystick/main.c
  * @brief   手柄遥控底盘 + 仪表盘 (evdev 协议，自动检测)
  * @author  Ltttttts
- *
- * 用法:
- *   ./joystick [串口设备]                     # 正常控制
- *   ./joystick /dev/ttyUSB0 --calibrate        # 查看 evdev 码
- *
- * ================================================================
- * TODO: 连接硬件后将下面的 0 改为 1
- * ================================================================
  */
+
 #define HARDWARE_ENABLED 0
 #define _DEFAULT_SOURCE
 
-#include "serial_port.h"
-#include "emm_v5_driver.h"
-#include "kinematics.h"
-#include "dashboard.h"
+#include "hal/serial_port.h"
+#include "driver/emm_v5.h"
+#include "control/kinematics.h"
+#include "ui/dashboard.h"
 
 #include <stdio.h>
 #include <stdlib.h>

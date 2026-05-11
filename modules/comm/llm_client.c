@@ -4,8 +4,8 @@
  * @author  Ltttttts
  */
 
-#include "llm_client.h"
-#include "json_helper.h"
+#include "comm/llm_client.h"
+#include "comm/json_helper.h"
 
 #include <stdio.h>
 #include <string.h>
