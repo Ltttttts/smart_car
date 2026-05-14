@@ -1,12 +1,23 @@
-/**
+﻿/**
  * @file    app/ai/main.c
- * @brief   AI 对话控制底盘（文本输入 → LLM → 电机控制）
+ * @brief   AI 对话控制底盘程序
  * @author  Ltttttts
  *
- * 用法:
- *   export LLM_API_KEY="sk-xxxxx"
- *   export LLM_MODEL="deepseek-v4-flash"
- *   make run-ai
+ * 功能：
+ *   用自然语言指挥小车运动。
+ *   用户输入"向前走 3 秒"→ LLM 返回 JSON 指令
+ *   → 解析出 vx/vy/omega/duration → 执行运动。
+ *
+ * 使用方式：
+ *   1. 设置环境变量：
+ *      export LLM_API_KEY="sk-xxxxx"
+ *      export LLM_MODEL="deepseek-v4-flash"
+ *   2. 运行：
+ *      make run-ai
+ *
+ * 安全开关：
+ *   顶部 HARDWARE_ENABLED 设为 0 时只模拟计算不驱动电机，
+ *   设为 1 时才真正控制硬件。这样可以先在模拟模式下调试。
  */
 
 #define HARDWARE_ENABLED 0
@@ -24,19 +35,19 @@
 #include <unistd.h>
 #include <signal.h>
 
-/* ---- 底盘参数 ---- */
+/* ========== 底盘物理参数 ========== */
 #define WHEEL_RADIUS_M      (0.05)
 #define HALF_LX_M           (0.12)
 #define HALF_LY_M           (0.10)
 #define ENCODER_PPR         (4000)
 
-/* ---- 各轮方向修正 ---- */
+/* ========== 各轮方向修正系数 ========== */
 #define DIR_FACTOR_FL  (1.0)
 #define DIR_FACTOR_FR  (1.0)
 #define DIR_FACTOR_RL  (1.0)
 #define DIR_FACTOR_RR  (1.0)
 
-/* ---- 全局 ---- */
+/* ========== 全局变量 ========== */
 #if HARDWARE_ENABLED
 static SerialPort_t *s_port = NULL;
 static EmmMotor_t   *s_motor[4] = { NULL };
@@ -46,7 +57,9 @@ static int           s_running = 1;
 
 static void sigint_handler(int sig) { (void)sig; s_running = 0; }
 
-/* ---- 系统提示词 ---- */
+/* ========== LLM 系统提示词 ========== */
+/* 这个提示词告诉 LLM 它的角色和输出格式。
+   核心要求：只输出 JSON，不要多余的文字说明。 */
 
 static const char *SYSTEM_PROMPT =
     "你是智能小车的AI驾驶助手。用户用文字向你下达指令，"
@@ -69,20 +82,27 @@ static const char *SYSTEM_PROMPT =
     "- 速度值必须在 -1.0 到 1.0 之间\n"
     "- 只说JSON，不要加解释";
 
-/* ---- 发送速度指令 ---- */
+/* ========== 发送速度指令 ========== */
 
+/**
+ * @brief  把 RPM 发给电机驱动器（硬件模式才真正发送）
+ * @param  rpm  四个轮子的目标转速
+ */
 static void send_velocity(const double rpm[4])
 {
 #if HARDWARE_ENABLED
     size_t i;
     for (i = 0; i < MOTOR_COUNT; i++)
         (void)emm_motor_set_velocity(s_motor[i],
-                     (int16_t)rpm[i], 50, true);
+                     (int16_t)rpm[i], 200U, true);
     (void)emm_motor_sync_trigger(s_motor, MOTOR_COUNT);
 #endif
     (void)rpm;
 }
 
+/**
+ * @brief  让所有电机立即停止
+ */
 static void stop_now(void)
 {
 #if HARDWARE_ENABLED
@@ -92,8 +112,16 @@ static void stop_now(void)
 #endif
 }
 
-/* ---- 执行 LLM 返回的指令 ---- */
+/* ========== 执行 LLM 返回的指令 ========== */
 
+/**
+ * @brief  解析并执行 LLM 返回的运动指令
+ *
+ * @param vx       前进速度（归一化 -1~1）
+ * @param vy       侧移速度（归一化 -1~1）
+ * @param omega    角速度（归一化 -1~1）
+ * @param duration 持续时间（秒），<=0 表示停止
+ */
 static void execute_command(double vx, double vy,
                             double omega, double duration)
 {
@@ -101,6 +129,7 @@ static void execute_command(double vx, double vy,
     WheelVelocity_t wheels;
     double rpm[4];
 
+    /* 运动学逆解算：机器人速度 → 各轮 RPM */
     kinematics_inverse(&s_kin, &robot, &wheels);
     rpm[0] = wheels.rpm[0] * DIR_FACTOR_FL;
     rpm[1] = wheels.rpm[1] * DIR_FACTOR_FR;
@@ -121,7 +150,7 @@ static void execute_command(double vx, double vy,
     stop_now();
 }
 
-/* ---- 初始化 ---- */
+/* ========== 初始化 / 清理 ========== */
 
 static int init_all(const char *device)
 {
@@ -177,14 +206,14 @@ int main(int argc, char *argv[])
     signal(SIGINT, sigint_handler);
     signal(SIGTERM, sigint_handler);
 
-    /* 加载 LLM 配置 */
+    /* 加载 LLM 配置（从环境变量读取） */
     llm_cfg_default(&cfg);
     if (cfg.api_key[0] == '\0') {
         fprintf(stderr, "[错误] 请设置 LLM_API_KEY 环境变量\n");
         return 1;
     }
 
-    /* 初始化硬件 */
+    /* 初始化硬件和运动学 */
     if (init_all(device) != 0) {
         deinit_all();
         return 1;
@@ -205,7 +234,7 @@ int main(int argc, char *argv[])
 
         if (!fgets(input, sizeof(input), stdin)) break;
 
-        /* 去除换行 */
+        /* 去除末尾的换行符 */
         {
             size_t n = strlen(input);
             if (n > 0 && input[n - 1] == '\n') input[n - 1] = '\0';
@@ -215,7 +244,7 @@ int main(int argc, char *argv[])
             break;
         if (input[0] == '\0') continue;
 
-        /* 调用 LLM */
+        /* 调用 LLM API */
         printf("[LLM] 思考中...\n");
         ret = llm_chat(&cfg, SYSTEM_PROMPT, input, &llm_resp);
         if (ret != 0 || !llm_resp.ok) {
@@ -225,7 +254,7 @@ int main(int argc, char *argv[])
 
         printf("[LLM] 回复: %s\n", llm_resp.content);
 
-        /* 解析 JSON 指令 */
+        /* 解析 LLM 返回的 JSON，提取运动参数 */
         {
             double vx = 0, vy = 0, omega = 0, dur = 0;
 
@@ -236,7 +265,7 @@ int main(int argc, char *argv[])
 
             execute_command(vx, vy, omega, dur);
 
-            /* 打印 LLM 的文本回复 */
+            /* 打印 LLM 生成的对用户说的话 */
             {
                 char text[256] = "";
                 if (json_get_str(llm_resp.content, "text",
